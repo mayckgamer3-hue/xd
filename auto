@@ -7,147 +7,133 @@ local player = Players.LocalPlayer
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ParryAttempt = Remotes:WaitForChild("ParryAttempt")
 
--- ========== CONFIGURACIÓN ==========
-local active = false
-local spamThread = nil
-local activationKey = Enum.KeyCode.F
-local customKeyName = "F"
-
--- PARÁMETROS PARA 2000 CPS (10 parrys cada 0.005s = 2000/s)
-local PARRY_BATCH = 10
-local CYCLE_DELAY = 0.005   -- 5 milisegundos
-
--- ========== GUI ==========
+-- ========== GUI SIMPLE ==========
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-ScreenGui.Name = "HyperSpamPro"
+ScreenGui.Name = "HyperSpam"
 ScreenGui.ResetOnSpawn = false
 
 local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 250, 0, 130)
-Frame.Position = UDim2.new(0.5, -125, 0.5, -65)
-Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+Frame.Size = UDim2.new(0, 200, 0, 80)
+Frame.Position = UDim2.new(0, 20, 0.5, -40)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 Frame.BackgroundTransparency = 0.1
 Frame.BorderSizePixel = 0
 Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
 
-local Title = Instance.new("TextLabel", Frame)
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "⚡ AUTO SPAM (2000 CPS) ⚡"
-Title.TextColor3 = Color3.new(1, 1, 1)
-Title.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 14
-Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 10)
+local title = Instance.new("TextLabel", Frame)
+title.Text = "💀 HYPER SPAM 💀"
+title.Size = UDim2.new(1, 0, 0, 30)
+title.TextColor3 = Color3.new(1, 1, 1)
+title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 14
+Instance.new("UICorner", title).CornerRadius = UDim.new(0, 10)
 
-local StatusLabel = Instance.new("TextLabel", Frame)
-StatusLabel.Size = UDim2.new(0.9, 0, 0, 25)
-StatusLabel.Position = UDim2.new(0.05, 0, 0, 38)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-StatusLabel.Font = Enum.Font.GothamBold
-StatusLabel.TextSize = 13
-StatusLabel.Text = "🔴 INACTIVO"
+local statusLabel = Instance.new("TextLabel", Frame)
+statusLabel.Size = UDim2.new(0.9, 0, 0, 20)
+statusLabel.Position = UDim2.new(0.05, 0, 0, 35)
+statusLabel.BackgroundTransparency = 1
+statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextSize = 12
+statusLabel.Text = "🔴 INACTIVO"
 
-local KeyButton = Instance.new("TextButton", Frame)
-KeyButton.Size = UDim2.new(0.3, 0, 0, 30)
-KeyButton.Position = UDim2.new(0.6, 0, 0, 70)
-KeyButton.Text = customKeyName
-KeyButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-KeyButton.TextColor3 = Color3.new(1, 1, 1)
-KeyButton.Font = Enum.Font.GothamBold
-KeyButton.TextSize = 13
-Instance.new("UICorner", KeyButton).CornerRadius = UDim.new(0, 6)
+local hyperBtn = Instance.new("TextButton", Frame)
+hyperBtn.Size = UDim2.new(0.9, 0, 0, 30)
+hyperBtn.Position = UDim2.new(0.05, 0, 0, 45)
+hyperBtn.Text = "💀 ACTIVAR HYPER SPAM"
+hyperBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+hyperBtn.TextColor3 = Color3.new(1, 1, 1)
+hyperBtn.Font = Enum.Font.GothamBold
+hyperBtn.TextSize = 12
+Instance.new("UICorner", hyperBtn).CornerRadius = UDim.new(0, 6)
 
-local ToggleBtn = Instance.new("TextButton", Frame)
-ToggleBtn.Size = UDim2.new(0.9, 0, 0, 30)
-ToggleBtn.Position = UDim2.new(0.05, 0, 0, 95)
-ToggleBtn.Text = "ACTIVAR (" .. customKeyName .. ")"
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 12
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
+-- ========== VARIABLES ==========
+local hyperSpam = false
+local hyperThread = nil
+local parryCount = 0
+local parrysPerSecond = 0
 
--- ========== FUNCIÓN PARRY (SIN SIMULACIÓN DE TECLA POR CICLO) ==========
+-- ========== FUNCIÓN PARRY (COMO LA TUYA) ==========
 local function doParry()
+    parryCount = parryCount + 1
+    parrysPerSecond = parrysPerSecond + 1
     ParryAttempt:FireServer()
+    VIM:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+    task.wait(0.001)
+    VIM:SendKeyEvent(false, Enum.KeyCode.F, false, game)
 end
 
--- ========== SPAM 2000 CPS ==========
-local function startSpam()
-    if spamThread then return end
+-- ========== HYPER SPAM (ESTRUCTURA DE TU CÓDIGO) ==========
+local function startHyperSpam()
+    if hyperThread then return end
     
-    spamThread = task.spawn(function()
-        while active do
-            for i = 1, PARRY_BATCH do
+    hyperThread = task.spawn(function()
+        while hyperSpam do
+            pcall(function()
+                -- 3 parrys por ciclo (más fuerte que 1, pero estable)
                 ParryAttempt:FireServer()
-            end
-            task.wait(CYCLE_DELAY)
+                ParryAttempt:FireServer()
+                ParryAttempt:FireServer()
+                
+                VIM:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+                task.wait(0.0005)
+                VIM:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+            end)
+            task.wait(0.006)  -- Más rápido que 0.008, pero estable
         end
     end)
 end
 
-local function stopSpam()
-    if spamThread then
-        coroutine.close(spamThread)
-        spamThread = nil
+local function stopHyperSpam()
+    if hyperThread then
+        coroutine.close(hyperThread)
+        hyperThread = nil
     end
 end
 
--- ========== TOGGLE ==========
-local function toggleSpam()
-    active = not active
+-- ========== ACTUALIZAR CONTADOR ==========
+task.spawn(function()
+    while true do
+        task.wait(1)
+        local speed = parrysPerSecond
+        parrysPerSecond = 0
+        
+        if hyperSpam then
+            statusLabel.Text = string.format("🟢 ACTIVO | %d/s", speed)
+            statusLabel.TextColor3 = speed > 800 and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(100, 255, 100)
+        else
+            statusLabel.Text = "🔴 INACTIVO"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        end
+    end
+end)
+
+-- ========== BOTÓN ==========
+hyperBtn.MouseButton1Click:Connect(function()
+    hyperSpam = not hyperSpam
     
-    if active then
-        startSpam()
-        StatusLabel.Text = "🟢 ACTIVO (2000 CPS)"
-        StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-        ToggleBtn.Text = "DESACTIVAR (" .. customKeyName .. ")"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 20, 20)
+    if hyperSpam then
+        hyperBtn.Text = "💀 DESACTIVAR HYPER SPAM"
+        hyperBtn.BackgroundColor3 = Color3.fromRGB(120, 20, 20)
+        startHyperSpam()
+        print("⚡ HYPER SPAM ACTIVADO")
     else
-        stopSpam()
-        StatusLabel.Text = "🔴 INACTIVO"
-        StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-        ToggleBtn.Text = "ACTIVAR (" .. customKeyName .. ")"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+        hyperBtn.Text = "💀 ACTIVAR HYPER SPAM"
+        hyperBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        stopHyperSpam()
+        print("🔴 HYPER SPAM DESACTIVADO")
     end
-end
-
-ToggleBtn.MouseButton1Click:Connect(toggleSpam)
-
--- ========== CAMBIAR TECLA ==========
-local waitingForKey = false
-
-KeyButton.MouseButton1Click:Connect(function()
-    waitingForKey = true
-    KeyButton.Text = "???"
-    KeyButton.BackgroundColor3 = Color3.fromRGB(80, 80, 30)
-    
-    local conn
-    conn = UserInputService.InputBegan:Connect(function(input)
-        if not waitingForKey then return end
-        if input.KeyCode ~= Enum.KeyCode.Unknown then
-            activationKey = input.KeyCode
-            customKeyName = input.KeyCode.Name
-            KeyButton.Text = customKeyName
-            ToggleBtn.Text = (active and "DESACTIVAR (" or "ACTIVAR (") .. customKeyName .. ")"
-            KeyButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-            waitingForKey = false
-            conn:Disconnect()
-        end
-    end)
 end)
 
 -- ========== TECLA RÁPIDA ==========
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if waitingForKey then return end
-    if gameProcessed then return end
-    if input.KeyCode == activationKey then
-        toggleSpam()
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.F then
+        hyperBtn.MouseButton1Click:Fire()
     end
 end)
 
--- ========== DRAG ==========
+-- ========== DRAG DE VENTANA ==========
 local dragging, dragStart, startPos
 Frame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -169,3 +155,6 @@ UserInputService.InputEnded:Connect(function(input)
         dragging = false
     end
 end)
+
+print("✅ HYPER SPAM OPTIMIZADO - Cargado!")
+print("🎮 Presiona F o haz clic en el botón para activar")
