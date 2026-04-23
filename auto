@@ -1,0 +1,186 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local VIM = game:GetService("VirtualInputManager")
+
+local player = Players.LocalPlayer
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local ParryAttempt = Remotes:WaitForChild("ParryAttempt")
+
+-- ========== CONFIGURACIÓN INICIAL ==========
+local active = false
+local spamThread = nil
+local activationKey = Enum.KeyCode.F
+local customKeyName = "F"
+
+-- PARÁMETROS OPTIMIZADOS (más fuertes e instantáneos)
+local PARRY_BATCH = 8       -- 8 parrys por ciclo (antes 1, ahora 8)
+local CYCLE_DELAY = 0.001   -- 0.001 segundos entre ciclos (antes 0.008)
+
+-- ========== GUI CON SELECTOR DE TECLA ==========
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.Name = "HyperSpamPro"
+ScreenGui.ResetOnSpawn = false
+
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 250, 0, 130)
+Frame.Position = UDim2.new(0.5, -125, 0.5, -65)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+Frame.BackgroundTransparency = 0.1
+Frame.BorderSizePixel = 0
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
+
+local Title = Instance.new("TextLabel", Frame)
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Text = "💀 HYPER SPAM PRO 💀"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 10)
+
+local StatusLabel = Instance.new("TextLabel", Frame)
+StatusLabel.Size = UDim2.new(0.9, 0, 0, 25)
+StatusLabel.Position = UDim2.new(0.05, 0, 0, 38)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+StatusLabel.Font = Enum.Font.GothamBold
+StatusLabel.TextSize = 13
+StatusLabel.Text = "🔴 INACTIVO"
+
+local KeyButton = Instance.new("TextButton", Frame)
+KeyButton.Size = UDim2.new(0.3, 0, 0, 30)
+KeyButton.Position = UDim2.new(0.6, 0, 0, 70)
+KeyButton.Text = customKeyName
+KeyButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+KeyButton.TextColor3 = Color3.new(1, 1, 1)
+KeyButton.Font = Enum.Font.GothamBold
+KeyButton.TextSize = 13
+Instance.new("UICorner", KeyButton).CornerRadius = UDim.new(0, 6)
+
+local ToggleBtn = Instance.new("TextButton", Frame)
+ToggleBtn.Size = UDim2.new(0.9, 0, 0, 30)
+ToggleBtn.Position = UDim2.new(0.05, 0, 0, 95)
+ToggleBtn.Text = "ACTIVAR (" .. customKeyName .. ")"
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.TextSize = 12
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
+
+-- ========== FUNCIÓN PARRY (LA MISMA QUE FUNCIONABA) ==========
+local function doParry()
+    ParryAttempt:FireServer()
+    VIM:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+    task.wait(0.0005)
+    VIM:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+end
+
+-- ========== SPAM CON ESTRUCTURA ORIGINAL (PERO MÁS RÁPIDO) ==========
+local function startSpam()
+    if spamThread then return end
+    
+    spamThread = task.spawn(function()
+        while active do
+            for i = 1, PARRY_BATCH do
+                ParryAttempt:FireServer()
+            end
+            -- Simular tecla una sola vez por ciclo
+            VIM:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+            task.wait(0.0005)
+            VIM:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+            task.wait(CYCLE_DELAY)
+        end
+    end)
+end
+
+local function stopSpam()
+    if spamThread then
+        coroutine.close(spamThread)
+        spamThread = nil
+    end
+end
+
+-- ========== TOGGLE ==========
+local function toggleSpam()
+    active = not active
+    
+    if active then
+        startSpam()
+        StatusLabel.Text = "🟢 ACTIVO"
+        StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+        ToggleBtn.Text = "DESACTIVAR (" .. customKeyName .. ")"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 20, 20)
+        print("⚡ HYPER SPAM ACTIVADO - Potencia máxima")
+    else
+        stopSpam()
+        StatusLabel.Text = "🔴 INACTIVO"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+        ToggleBtn.Text = "ACTIVAR (" .. customKeyName .. ")"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+        print("🔴 HYPER SPAM DESACTIVADO")
+    end
+end
+
+ToggleBtn.MouseButton1Click:Connect(toggleSpam)
+
+-- ========== CAMBIAR TECLA ==========
+local waitingForKey = false
+
+KeyButton.MouseButton1Click:Connect(function()
+    waitingForKey = true
+    KeyButton.Text = "???"
+    KeyButton.BackgroundColor3 = Color3.fromRGB(80, 80, 30)
+    
+    local conn
+    conn = UserInputService.InputBegan:Connect(function(input)
+        if not waitingForKey then return end
+        if input.KeyCode ~= Enum.KeyCode.Unknown then
+            activationKey = input.KeyCode
+            customKeyName = input.KeyCode.Name
+            KeyButton.Text = customKeyName
+            ToggleBtn.Text = (active and "DESACTIVAR (" or "ACTIVAR (") .. customKeyName .. ")"
+            KeyButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+            waitingForKey = false
+            conn:Disconnect()
+            print("✅ Tecla cambiada a: " .. customKeyName)
+        end
+    end)
+end)
+
+-- ========== TECLA RÁPIDA ==========
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if waitingForKey then return end
+    if gameProcessed then return end
+    if input.KeyCode == activationKey then
+        toggleSpam()
+    end
+end)
+
+-- ========== DRAG ==========
+local dragging, dragStart, startPos
+Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+print("✅ HYPER SPAM PRO CARGADO")
+print("🎮 Tecla actual: " .. customKeyName .. " (clic para cambiar)")
+print("⚡ Parámetros: " .. PARRY_BATCH .. " parrys/ciclo | Delay " .. (CYCLE_DELAY * 1000) .. "ms")
+print("🔥 Velocidad estimada: ~" .. math.floor(1 / CYCLE_DELAY * PARRY_BATCH) .. " parrys/segundo")
