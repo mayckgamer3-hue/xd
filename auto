@@ -1,152 +1,240 @@
+--[[
+    Script: MokAa - Auto Parry Spam para Blade Ball
+    Velocidad: ~1500 parrys/segundo (6 parrys cada 0.004s)
+    Características: GUI morada profesional, tecla configurable, arrastrable, efectos suaves.
+]]
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local VIM = game:GetService("VirtualInputManager")
 
 local player = Players.LocalPlayer
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ParryAttempt = Remotes:WaitForChild("ParryAttempt")
 
--- ========== GUI SIMPLE ==========
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-ScreenGui.Name = "HyperSpam"
-ScreenGui.ResetOnSpawn = false
+-- ========== CONFIGURACIÓN DE SPAM ==========
+local PARRY_BATCH = 6       -- 6 parrys por ciclo
+local CYCLE_DELAY = 0.004   -- 0.004s entre ciclos => 1500 CPS
 
-local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 200, 0, 80)
-Frame.Position = UDim2.new(0, 20, 0.5, -40)
-Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Frame.BackgroundTransparency = 0.1
-Frame.BorderSizePixel = 0
-Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
+-- ========== VARIABLES DE ESTADO ==========
+local active = false
+local spamThread = nil
+local activationKey = Enum.KeyCode.F
+local customKeyName = "F"
 
-local title = Instance.new("TextLabel", Frame)
-title.Text = "💀 HYPER SPAM 💀"
-title.Size = UDim2.new(1, 0, 0, 30)
-title.TextColor3 = Color3.new(1, 1, 1)
-title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 14
-Instance.new("UICorner", title).CornerRadius = UDim.new(0, 10)
-
-local statusLabel = Instance.new("TextLabel", Frame)
-statusLabel.Size = UDim2.new(0.9, 0, 0, 20)
-statusLabel.Position = UDim2.new(0.05, 0, 0, 35)
-statusLabel.BackgroundTransparency = 1
-statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextSize = 12
-statusLabel.Text = "🔴 INACTIVO"
-
-local hyperBtn = Instance.new("TextButton", Frame)
-hyperBtn.Size = UDim2.new(0.9, 0, 0, 30)
-hyperBtn.Position = UDim2.new(0.05, 0, 0, 45)
-hyperBtn.Text = "💀 ACTIVAR HYPER SPAM"
-hyperBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-hyperBtn.TextColor3 = Color3.new(1, 1, 1)
-hyperBtn.Font = Enum.Font.GothamBold
-hyperBtn.TextSize = 12
-Instance.new("UICorner", hyperBtn).CornerRadius = UDim.new(0, 6)
-
--- ========== VARIABLES ==========
-local hyperSpam = false
-local hyperThread = nil
-local parryCount = 0
-local parrysPerSecond = 0
-
--- ========== FUNCIÓN PARRY (COMO LA TUYA) ==========
+-- ========== FUNCIONES DE PARRY ==========
 local function doParry()
-    parryCount = parryCount + 1
-    parrysPerSecond = parrysPerSecond + 1
     ParryAttempt:FireServer()
-    VIM:SendKeyEvent(true, Enum.KeyCode.F, false, game)
-    task.wait(0.001)
-    VIM:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+    -- (La simulación de tecla F puede omitirse para reducir carga, pero se deja comentada)
+    -- VIM:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+    -- VIM:SendKeyEvent(false, Enum.KeyCode.F, false, game)
 end
 
--- ========== HYPER SPAM (ESTRUCTURA DE TU CÓDIGO) ==========
-local function startHyperSpam()
-    if hyperThread then return end
-    
-    hyperThread = task.spawn(function()
-        while hyperSpam do
-            pcall(function()
-                -- 3 parrys por ciclo (más fuerte que 1, pero estable)
+local function startSpam()
+    if spamThread then return end
+    spamThread = task.spawn(function()
+        while active do
+            for _ = 1, PARRY_BATCH do
                 ParryAttempt:FireServer()
-                ParryAttempt:FireServer()
-                ParryAttempt:FireServer()
-                
-                VIM:SendKeyEvent(true, Enum.KeyCode.F, false, game)
-                task.wait(0.0005)
-                VIM:SendKeyEvent(false, Enum.KeyCode.F, false, game)
-            end)
-            task.wait(0.006)  -- Más rápido que 0.008, pero estable
+            end
+            task.wait(CYCLE_DELAY)
         end
     end)
 end
 
-local function stopHyperSpam()
-    if hyperThread then
-        coroutine.close(hyperThread)
-        hyperThread = nil
+local function stopSpam()
+    if spamThread then
+        coroutine.close(spamThread)
+        spamThread = nil
     end
 end
 
--- ========== ACTUALIZAR CONTADOR ==========
-task.spawn(function()
-    while true do
-        task.wait(1)
-        local speed = parrysPerSecond
-        parrysPerSecond = 0
-        
-        if hyperSpam then
-            statusLabel.Text = string.format("🟢 ACTIVO | %d/s", speed)
-            statusLabel.TextColor3 = speed > 800 and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(100, 255, 100)
-        else
-            statusLabel.Text = "🔴 INACTIVO"
-            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-        end
-    end
-end)
-
--- ========== BOTÓN ==========
-hyperBtn.MouseButton1Click:Connect(function()
-    hyperSpam = not hyperSpam
-    
-    if hyperSpam then
-        hyperBtn.Text = "💀 DESACTIVAR HYPER SPAM"
-        hyperBtn.BackgroundColor3 = Color3.fromRGB(120, 20, 20)
-        startHyperSpam()
-        print("⚡ HYPER SPAM ACTIVADO")
+local function toggleSpam()
+    active = not active
+    if active then
+        startSpam()
     else
-        hyperBtn.Text = "💀 ACTIVAR HYPER SPAM"
-        hyperBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        stopHyperSpam()
-        print("🔴 HYPER SPAM DESACTIVADO")
+        stopSpam()
     end
-end)
+    updateUI()
+end
+
+-- ========== GUI PROFESIONAL MORADA ==========
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.Name = "MokAa"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Frame principal con efecto glass y borde degradado
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 300, 0, 160)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -80)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 20, 35) -- Morado oscuro
+MainFrame.BackgroundTransparency = 0.1
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+local Corner = Instance.new("UICorner", MainFrame)
+Corner.CornerRadius = UDim.new(0, 16)
+
+-- Sombra exterior (UIStroke)
+local Shadow = Instance.new("UIStroke", MainFrame)
+Shadow.Color = Color3.fromRGB(120, 80, 200)
+Shadow.Transparency = 0.6
+Shadow.Thickness = 2
+
+-- Degradado de fondo (opcional, para efecto premium)
+local Gradient = Instance.new("UIGradient", MainFrame)
+Gradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(35, 25, 50)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 20, 40))
+})
+Gradient.Rotation = 45
+
+-- Título principal con fuente personalizada (Gotham semibold se acerca a lo profesional)
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 45)
+Title.Position = UDim2.new(0, 0, 0, 0)
+Title.BackgroundColor3 = Color3.fromRGB(45, 35, 65)
+Title.BackgroundTransparency = 0.3
+Title.Text = "𝐌𝐨𝐤𝐀𝐚"
+Title.TextColor3 = Color3.fromRGB(210, 180, 255) -- Morado claro
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 22
+Title.TextScaled = false
+local TitleCorner = Instance.new("UICorner", Title)
+TitleCorner.CornerRadius = UDim.new(0, 16)
+
+-- Línea decorativa debajo del título
+local AccentLine = Instance.new("Frame", MainFrame)
+AccentLine.Size = UDim2.new(0.85, 0, 0, 2)
+AccentLine.Position = UDim2.new(0.075, 0, 0, 45)
+AccentLine.BackgroundColor3 = Color3.fromRGB(160, 100, 220)
+AccentLine.BorderSizePixel = 0
+
+-- Estado (Activo/Inactivo)
+local StatusLabel = Instance.new("TextLabel", MainFrame)
+StatusLabel.Size = UDim2.new(0.9, 0, 0, 25)
+StatusLabel.Position = UDim2.new(0.05, 0, 0, 55)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "◉ INACTIVO"
+StatusLabel.TextColor3 = Color3.fromRGB(255, 120, 150)
+StatusLabel.Font = Enum.Font.GothamBold
+StatusLabel.TextSize = 14
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Contenedor para botones (alineación horizontal)
+local ButtonContainer = Instance.new("Frame", MainFrame)
+ButtonContainer.Size = UDim2.new(0.9, 0, 0, 38)
+ButtonContainer.Position = UDim2.new(0.05, 0, 0, 85)
+ButtonContainer.BackgroundTransparency = 1
+
+local ToggleBtn = Instance.new("TextButton", ButtonContainer)
+ToggleBtn.Size = UDim2.new(0.48, 0, 1, 0)
+ToggleBtn.Position = UDim2.new(0, 0, 0, 0)
+ToggleBtn.Text = "ACTIVAR"
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(80, 60, 120)
+ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.TextSize = 14
+local BtnCorner = Instance.new("UICorner", ToggleBtn)
+BtnCorner.CornerRadius = UDim.new(0, 8)
+
+local KeyBtn = Instance.new("TextButton", ButtonContainer)
+KeyBtn.Size = UDim2.new(0.48, 0, 1, 0)
+KeyBtn.Position = UDim2.new(0.52, 0, 0, 0)
+KeyBtn.Text = "⌨️ " .. customKeyName
+KeyBtn.BackgroundColor3 = Color3.fromRGB(60, 45, 95)
+KeyBtn.TextColor3 = Color3.new(1, 1, 1)
+KeyBtn.Font = Enum.Font.GothamBold
+KeyBtn.TextSize = 13
+local KeyBtnCorner = Instance.new("UICorner", KeyBtn)
+KeyBtnCorner.CornerRadius = UDim.new(0, 8)
+
+-- Información de velocidad (abajo)
+local SpeedLabel = Instance.new("TextLabel", MainFrame)
+SpeedLabel.Size = UDim2.new(0.9, 0, 0, 20)
+SpeedLabel.Position = UDim2.new(0.05, 0, 0, 130)
+SpeedLabel.BackgroundTransparency = 1
+SpeedLabel.Text = "⚡ 1500 CPS | MokAa Engine"
+SpeedLabel.TextColor3 = Color3.fromRGB(170, 140, 210)
+SpeedLabel.Font = Enum.Font.Gotham
+SpeedLabel.TextSize = 11
+SpeedLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+-- ========== FUNCIONES DE UI ==========
+local function updateUI()
+    if active then
+        StatusLabel.Text = "● ACTIVO"
+        StatusLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
+        ToggleBtn.Text = "DESACTIVAR"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 50, 100)
+        -- Efecto de brillo en el borde
+        TweenService:Create(Shadow, TweenInfo.new(0.3), {Transparency = 0.2}):Play()
+        TweenService:Create(AccentLine, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(200, 120, 255)}):Play()
+    else
+        StatusLabel.Text = "◉ INACTIVO"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 120, 150)
+        ToggleBtn.Text = "ACTIVAR"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(80, 60, 120)
+        TweenService:Create(Shadow, TweenInfo.new(0.3), {Transparency = 0.6}):Play()
+        TweenService:Create(AccentLine, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(160, 100, 220)}):Play()
+    end
+end
+
+-- Evento del botón toggle
+ToggleBtn.MouseButton1Click:Connect(toggleSpam)
+
+-- ========== CAMBIO DE TECLA ==========
+local waitingForKey = false
+
+local function startKeyChange()
+    waitingForKey = true
+    KeyBtn.Text = "..."
+    KeyBtn.BackgroundColor3 = Color3.fromRGB(100, 70, 130)
+    local connection
+    connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not waitingForKey then return end
+        if gameProcessed then return end
+        if input.KeyCode ~= Enum.KeyCode.Unknown then
+            activationKey = input.KeyCode
+            customKeyName = input.KeyCode.Name
+            KeyBtn.Text = "⌨️ " .. customKeyName
+            KeyBtn.BackgroundColor3 = Color3.fromRGB(60, 45, 95)
+            waitingForKey = false
+            connection:Disconnect()
+        end
+    end)
+end
+
+KeyBtn.MouseButton1Click:Connect(startKeyChange)
 
 -- ========== TECLA RÁPIDA ==========
-UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.F then
-        hyperBtn.MouseButton1Click:Fire()
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if waitingForKey then return end
+    if gameProcessed then return end
+    if input.KeyCode == activationKey then
+        toggleSpam()
     end
 end)
 
--- ========== DRAG DE VENTANA ==========
-local dragging, dragStart, startPos
-Frame.InputBegan:Connect(function(input)
+-- ========== ARRASTRE DE LA VENTANA ==========
+local dragging = false
+local dragStart, startPos
+
+MainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
         dragStart = input.Position
-        startPos = Frame.Position
+        startPos = MainFrame.Position
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
     if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
         local delta = input.Position - dragStart
-        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
@@ -156,5 +244,20 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
-print("✅ HYPER SPAM OPTIMIZADO - Cargado!")
-print("🎮 Presiona F o haz clic en el botón para activar")
+-- ========== EFECTOS HOVER EN BOTONES ==========
+local function addHoverEffect(btn, normalColor, hoverColor)
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = hoverColor}):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = normalColor}):Play()
+    end)
+end
+
+addHoverEffect(ToggleBtn, Color3.fromRGB(80, 60, 120), Color3.fromRGB(100, 75, 150))
+addHoverEffect(KeyBtn, Color3.fromRGB(60, 45, 95), Color3.fromRGB(80, 60, 120))
+
+-- Inicializar UI
+updateUI()
+
+print("MokAa cargado correctamente | Spam ~1500 CPS | Tecla: " .. customKeyName)
