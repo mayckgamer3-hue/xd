@@ -7,17 +7,17 @@ local player = Players.LocalPlayer
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ParryAttempt = Remotes:WaitForChild("ParryAttempt")
 
--- ========== CONFIGURACIÓN SEGURA (NO SATURA INTERNET) ==========
+-- ========== CONFIGURACIÓN ==========
 local active = false
 local spamThread = nil
 local activationKey = Enum.KeyCode.F
 local customKeyName = "F"
 
--- PARÁMETROS SEGUROS (reduce drásticamente el tráfico de red)
-local PARRY_BATCH = 3       -- 3 parrys por ciclo (antes 8)
-local CYCLE_DELAY = 0.008   -- 0.008 segundos entre ciclos (antes 0.001)
+-- PARÁMETROS PARA 2000 CPS (10 parrys cada 0.005s = 2000/s)
+local PARRY_BATCH = 10
+local CYCLE_DELAY = 0.005   -- 5 milisegundos
 
--- ========== GUI (IGUAL QUE ANTES) ==========
+-- ========== GUI ==========
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 ScreenGui.Name = "HyperSpamPro"
 ScreenGui.ResetOnSpawn = false
@@ -32,7 +32,7 @@ Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
 
 local Title = Instance.new("TextLabel", Frame)
 Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "⚡ AUTO SPAM ⚡"
+Title.Text = "⚡ AUTO SPAM (2000 CPS) ⚡"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
 Title.Font = Enum.Font.GothamBold
@@ -68,13 +68,12 @@ ToggleBtn.Font = Enum.Font.GothamBold
 ToggleBtn.TextSize = 12
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
 
--- ========== FUNCIÓN PARRY (SIN TASK.WAIT INNECESARIO) ==========
+-- ========== FUNCIÓN PARRY (SIN SIMULACIÓN DE TECLA POR CICLO) ==========
 local function doParry()
     ParryAttempt:FireServer()
-    -- La simulación de tecla solo una vez por ciclo, no por parry
 end
 
--- ========== SPAM CON PARÁMETROS SEGUROS ==========
+-- ========== SPAM 2000 CPS ==========
 local function startSpam()
     if spamThread then return end
     
@@ -83,9 +82,6 @@ local function startSpam()
             for i = 1, PARRY_BATCH do
                 ParryAttempt:FireServer()
             end
-            -- Simular tecla una sola vez por ciclo (opcional, puedes eliminar esta línea)
-            VIM:SendKeyEvent(true, Enum.KeyCode.F, false, game)
-            VIM:SendKeyEvent(false, Enum.KeyCode.F, false, game)
             task.wait(CYCLE_DELAY)
         end
     end)
@@ -104,7 +100,7 @@ local function toggleSpam()
     
     if active then
         startSpam()
-        StatusLabel.Text = "🟢 ACTIVO"
+        StatusLabel.Text = "🟢 ACTIVO (2000 CPS)"
         StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
         ToggleBtn.Text = "DESACTIVAR (" .. customKeyName .. ")"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 20, 20)
