@@ -7,17 +7,17 @@ local player = Players.LocalPlayer
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ParryAttempt = Remotes:WaitForChild("ParryAttempt")
 
--- ========== CONFIGURACIÓN INICIAL ==========
+-- ========== CONFIGURACIÓN SEGURA (NO SATURA INTERNET) ==========
 local active = false
 local spamThread = nil
 local activationKey = Enum.KeyCode.F
 local customKeyName = "F"
 
--- PARÁMETROS OPTIMIZADOS (más fuertes e instantáneos)
-local PARRY_BATCH = 8       -- 8 parrys por ciclo (antes 1, ahora 8)
-local CYCLE_DELAY = 0.001   -- 0.001 segundos entre ciclos (antes 0.008)
+-- PARÁMETROS SEGUROS (reduce drásticamente el tráfico de red)
+local PARRY_BATCH = 3       -- 3 parrys por ciclo (antes 8)
+local CYCLE_DELAY = 0.008   -- 0.008 segundos entre ciclos (antes 0.001)
 
--- ========== GUI CON SELECTOR DE TECLA ==========
+-- ========== GUI (IGUAL QUE ANTES) ==========
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 ScreenGui.Name = "HyperSpamPro"
 ScreenGui.ResetOnSpawn = false
@@ -32,7 +32,7 @@ Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
 
 local Title = Instance.new("TextLabel", Frame)
 Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "💀 HYPER SPAM PRO 💀"
+Title.Text = "⚡ AUTO SPAM ⚡"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
 Title.Font = Enum.Font.GothamBold
@@ -68,15 +68,13 @@ ToggleBtn.Font = Enum.Font.GothamBold
 ToggleBtn.TextSize = 12
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
 
--- ========== FUNCIÓN PARRY (LA MISMA QUE FUNCIONABA) ==========
+-- ========== FUNCIÓN PARRY (SIN TASK.WAIT INNECESARIO) ==========
 local function doParry()
     ParryAttempt:FireServer()
-    VIM:SendKeyEvent(true, Enum.KeyCode.F, false, game)
-    task.wait(0.0005)
-    VIM:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+    -- La simulación de tecla solo una vez por ciclo, no por parry
 end
 
--- ========== SPAM CON ESTRUCTURA ORIGINAL (PERO MÁS RÁPIDO) ==========
+-- ========== SPAM CON PARÁMETROS SEGUROS ==========
 local function startSpam()
     if spamThread then return end
     
@@ -85,9 +83,8 @@ local function startSpam()
             for i = 1, PARRY_BATCH do
                 ParryAttempt:FireServer()
             end
-            -- Simular tecla una sola vez por ciclo
+            -- Simular tecla una sola vez por ciclo (opcional, puedes eliminar esta línea)
             VIM:SendKeyEvent(true, Enum.KeyCode.F, false, game)
-            task.wait(0.0005)
             VIM:SendKeyEvent(false, Enum.KeyCode.F, false, game)
             task.wait(CYCLE_DELAY)
         end
@@ -111,14 +108,12 @@ local function toggleSpam()
         StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
         ToggleBtn.Text = "DESACTIVAR (" .. customKeyName .. ")"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 20, 20)
-        print("⚡ HYPER SPAM ACTIVADO - Potencia máxima")
     else
         stopSpam()
         StatusLabel.Text = "🔴 INACTIVO"
         StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
         ToggleBtn.Text = "ACTIVAR (" .. customKeyName .. ")"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-        print("🔴 HYPER SPAM DESACTIVADO")
     end
 end
 
@@ -143,7 +138,6 @@ KeyButton.MouseButton1Click:Connect(function()
             KeyButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
             waitingForKey = false
             conn:Disconnect()
-            print("✅ Tecla cambiada a: " .. customKeyName)
         end
     end)
 end)
@@ -179,8 +173,3 @@ UserInputService.InputEnded:Connect(function(input)
         dragging = false
     end
 end)
-
-print("✅ HYPER SPAM PRO CARGADO")
-print("🎮 Tecla actual: " .. customKeyName .. " (clic para cambiar)")
-print("⚡ Parámetros: " .. PARRY_BATCH .. " parrys/ciclo | Delay " .. (CYCLE_DELAY * 1000) .. "ms")
-print("🔥 Velocidad estimada: ~" .. math.floor(1 / CYCLE_DELAY * PARRY_BATCH) .. " parrys/segundo")
